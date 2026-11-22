@@ -86,3 +86,23 @@ RETURN recommended.title AS recommendedMovie,
 
 ORDER BY similarUsers DESC, averageRating DESC
 LIMIT 10;
+
+
+// Query 6 — Shortest path between two users
+
+MATCH (u1:User {userId: 1}),
+      (u2:User {userId: 2})
+
+MATCH p = shortestPath(
+    (u1)-[:RATED*..6]-(u2)
+)
+
+RETURN
+    p AS path,
+    length(p) AS pathLength,
+    [n IN nodes(p) |
+        CASE
+            WHEN n:User THEN 'User ' + toString(n.userId)
+            WHEN n:Movie THEN n.title
+        END
+    ] AS pathNodes;
