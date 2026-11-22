@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+
+# MovieLens dataset
+ml-1m.zip
+import/
+
+# Neo4j runtime data
+neo4j_data/
+neo4j_logs/
+neo4j_plugins/
+
+# OS and IDE
+.vscode/
+.DS_Store
