@@ -437,4 +437,139 @@ The short paths may also be influenced by the projection strategy, which retaine
 
 ## Part 6 — Analysis and Conclusions
 
-*To be completed using the actual query results and graph performance observations.*
+### 6.1 Graph Databases vs Relational Databases
+
+Graph databases and relational databases can represent the same MovieLens dataset, but they organize relationships differently.
+
+In a relational database, users, movies, genres, and ratings would be stored in separate tables connected through primary and foreign keys. Queries involving multiple entities would typically require SQL JOIN operations.
+
+In Neo4j, these relationships are explicitly represented as graph edges, making connected data easier to explore using Cypher patterns.
+
+**Example: Query 3 — Movies Highly Rated by Two Users**
+
+The Cypher implementation identifies movies that both User 1 and User 2 rated at least 4.
+
+```cypher
+MATCH (u1:User {userId: 1})-[r1:RATED]->(m:Movie)
+      <-[r2:RATED]-(u2:User {userId: 2})
+WHERE r1.rating >= 4 AND r2.rating >= 4
+RETURN m.title;
+```
+
+An equivalent SQL query would be:
+
+```sql
+SELECT DISTINCT m.title
+FROM movies m
+JOIN ratings r1
+    ON m.movie_id = r1.movie_id
+JOIN ratings r2
+    ON m.movie_id = r2.movie_id
+WHERE r1.user_id = 1
+  AND r2.user_id = 2
+  AND r1.rating >= 4
+  AND r2.rating >= 4;
+```
+
+Both implementations can efficiently solve this problem when the underlying database is appropriately indexed.
+
+However, more complex graph operations provide a clearer distinction.
+
+**Query 5 — Collaborative Filtering:** Neo4j expresses recommendations through multi-hop patterns connecting users, shared movies, similar users, and candidate movies. The SQL equivalent requires multiple joins, aggregation, and exclusion of previously rated movies.
+
+**Query 6 — Shortest Path:** Neo4j provides graph traversal capabilities for finding paths between users. SQL can also support graph traversal through recursive common table expressions, but implementing shortest-path searches can require substantially more complex query logic.
+
+Therefore, the primary benefit of Neo4j in this project is its natural representation of relationships and its expressive graph traversal capabilities, rather than a guarantee of better performance for every query.
+
+### 6.2 Where Relational Databases Perform Better
+
+Relational databases may be more suitable for several types of operations in the MovieLens dataset.
+
+**Large-scale aggregations:** Calculating average ratings, counting user interactions, or generating overall statistics can be efficiently implemented using SQL aggregation functions such as `AVG`, `COUNT`, and `GROUP BY`.
+
+For example, Query 4, which calculates average ratings by genre, is also a natural relational analytics task.
+
+**Reporting and business intelligence:** Relational databases integrate well with traditional reporting tools and analytical workflows. Structured reports, dashboards, and tabular summaries can often be produced more conveniently using SQL.
+
+**Bulk data processing and export:** The MovieLens dataset originates from structured files. Relational systems are well suited to bulk loading, filtering, transforming, and exporting large tabular datasets.
+
+**Data integrity and structured transactions:** Relational databases provide mature mechanisms for enforcing relationships through primary keys, foreign keys, and transactional constraints.
+
+Neo4j also supports transactions, indexes, and constraints, but these capabilities alone do not make a graph database the best choice for every workload.
+
+The conclusion is that relational databases are generally strong candidates for structured reporting and aggregations, whereas graph databases are particularly useful when relationships and traversal patterns are central to the application.
+
+### 6.3 Graph Schema Improvements
+
+The current graph contains three node types (`User`, `Movie`, `Genre`) and two relationship types (`RATED`, `HAS_GENRE`).
+
+The following optimizations could improve specific queries.
+
+**Improvement 1 — Optimize Query 1: Thriller Movies with High Ratings**
+
+Query 1 traverses from a genre to its movies and then aggregates incoming rating relationships.
+
+One possible optimization is to maintain derived statistics on Movie nodes, such as:
+
+- `averageRating`
+- `ratingCount`
+
+These properties could be periodically recalculated when rating data changes.
+
+The query could then use the stored statistics instead of recalculating averages over all `RATED` relationships on every execution.
+
+This approach improves repeated read-heavy analytical queries but introduces additional storage and consistency requirements.
+
+**Improvement 2 — Optimize Query 5: Collaborative Filtering**
+
+Query 5 discovers similar users dynamically by traversing common movies and counting shared positive ratings.
+
+For larger graphs, this process can generate substantial intermediate results.
+
+A possible improvement is to introduce precomputed relationships:
+
+`(User)-[:SIMILAR {score, sharedMovies}]->(User)`
+
+These relationships would represent user similarity calculated from shared preferences.
+
+Recommendation queries could then directly explore the most similar users instead of recalculating similarities during every request.
+
+This would reduce repeated graph traversal work, although similarity relationships would need to be updated when new ratings are added.
+
+**Improvement 3 — Optimize Query 6: Shortest Path**
+
+Query 6 searches for connections through `RATED` relationships.
+
+Restricting traversals to relevant relationship types, limiting maximum path length, and starting from users identified through indexed properties can help control query expansion.
+
+In addition, a derived user-similarity graph could reduce the number of intermediate movie nodes for certain user-to-user path analyses.
+
+However, this optimization changes the meaning of the path: a `SIMILAR` relationship represents derived similarity rather than an individual movie rating.
+
+### 6.4 Overall Project Conclusions
+
+The MovieLens knowledge graph was successfully implemented using Neo4j AuraDB Free.
+
+The final imported dataset contains:
+
+| Element | Count |
+|---|---:|
+| User nodes | 6,040 |
+| Movie nodes | 3,883 |
+| Genre nodes | 18 |
+| RATED relationships | 200,000 |
+| HAS_GENRE relationships | 6,408 |
+
+Six Cypher queries demonstrated filtering, aggregation, shared movie preferences, collaborative filtering, and shortest-path search.
+
+Supernode analysis identified highly connected entities, including the Drama genre with 1,603 relationships and User 1181 with 1,521 relationships. This demonstrated the impact of graph topology on traversal complexity.
+
+Additional Graph Data Science experiments included PageRank, Louvain community detection, and Dijkstra shortest-path analysis.
+
+PageRank identified structurally influential movies in a limited similarity graph. Louvain identified five user communities with modularity of 0.0769, indicating relatively weak separation between communities. Dijkstra found direct paths for four selected user pairs, with an average path length of 1.0.
+
+These GDS experiments used restricted projections and should not be interpreted as representative measurements of the complete MovieLens dataset.
+
+**Final conclusion:** Graph databases are particularly valuable when applications depend on exploring interconnected entities, discovering relationships, generating recommendations, and finding paths. Relational databases remain effective for structured data storage, large-scale aggregation, and reporting.
+
+The most suitable database model depends on the query workload, data structure, scalability requirements, and expected access patterns rather than on the assumption that one database technology is universally superior.
