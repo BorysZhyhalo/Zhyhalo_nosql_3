@@ -128,9 +128,25 @@ Add a screenshot of the successfully created constraints:
 
 ### 2.5 Data Import Results
 
-*To be completed after importing nodes and relationships.*
+The MovieLens 1M dataset was successfully imported into Neo4j AuraDB Free using Cypher `LOAD CSV` queries with CSV files accessible via GitHub Raw URLs.
 
----
+Uniqueness constraints were created before loading data. `MERGE` was used to prevent duplicate nodes and relationships during repeated executions.
+
+The `RATED` relationships were imported in batches using `apoc.periodic.iterate` with a batch size of 1,000 and sequential execution (`parallel: false`).
+
+Due to the resource limitations of AuraDB Free, the import was limited to the first 200,000 ratings.
+
+| Element | Imported count |
+|---|---:|
+| User nodes | 6,040 |
+| Movie nodes | 3,883 |
+| Genre nodes | 18 |
+| RATED relationships | 200,000 |
+| HAS_GENRE relationships | 6,408 |
+| **Total nodes** | **9,941** |
+| **Total relationships** | **206,408** |
+
+The final relationship counts were verified using Cypher aggregation queries.
 
 ## Part 3 — Cypher Queries
 
