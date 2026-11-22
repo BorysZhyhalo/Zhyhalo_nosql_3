@@ -21,7 +21,17 @@ The project covers:
 
 **Language:** Cypher 25
 
-**Environment:** Python, VS Code, Neo4j Aura Query
+**Environment:** Python (CSV conversion), VS Code, Neo4j Aura Query; Aura Graph Analytics (optional GDS)
+
+## How to Reproduce
+
+1. Download MovieLens 1M from the dataset source and place `movies.dat`, `users.dat`, and `ratings.dat` under `ml-1m/ml-1m/` (the nested path used in this project).
+2. Run `python convert.py` to produce UTF-8 CSV files under `import/`.
+3. Open Neo4j Aura Query and execute the statements in [`queries/part2_load.cypher`](queries/part2_load.cypher) in their intended order: constraints, nodes, `HAS_GENRE`, then batched `RATED` relationships. The current Cypher import uses publicly reachable CSV URLs; replace them if the hosting location changes.
+4. Run the six queries in [`queries/part3.cypher`](queries/part3.cypher) and the supernode analysis in [`queries/part4_supernodes.cypher`](queries/part4_supernodes.cypher).
+5. Optionally run [`queries/part5_gds.cypher`](queries/part5_gds.cypher) in a compatible Aura Graph Analytics session. The projected graphs are temporary; delete the session after collecting results.
+
+**Scope:** All main analytical results use the first 200,000 ratings; GDS projections use smaller, explicitly constrained user samples. Screenshots in `output/` provide execution evidence. Actual runtime, cost, and performance comparisons against SQL were not benchmarked.
 
 ---
 
@@ -90,7 +100,7 @@ The MovieLens 1M dataset contains:
 
 The original `.dat` files use `::` as a delimiter and Latin-1 encoding.
 
-The `convert.py` script converts the files to UTF-8 CSV format for Neo4j ingestion.
+The `convert.py` script converts the original Latin-1 `.dat` files into UTF-8 CSV files in `import/`. For this project, ratings are limited to the first 200,000 rows during database import; the CSV conversion itself includes all 1,000,209 ratings.
 
 ### 2.2 Database Configuration
 
@@ -114,7 +124,7 @@ Three uniqueness constraints were created before data ingestion.
 | movie_id_unique | Movie | movieId |
 | genre_name_unique | Genre | name |
 
-These constraints prevent duplicate identifiers and automatically create indexes used to locate nodes during `MERGE` and relationship creation.
+These uniqueness constraints enforce distinct values for the specified properties (when present) and create backing indexes used by `MERGE` and relationship lookup. `MERGE` is responsible for reusing existing matching nodes and relationships during repeated imports.
 
 All three constraints were successfully verified using `SHOW CONSTRAINTS`.
 
@@ -122,7 +132,7 @@ Implementation: `queries/part2_load.cypher`.
 
 ### 2.4 Execution Evidence
 
-Add a screenshot of the successfully created constraints:
+The created constraints were verified in Aura Query:
 
 ![Neo4j uniqueness constraints](output/02_constraints.png)
 
@@ -146,7 +156,9 @@ Due to the resource limitations of AuraDB Free, the import was limited to the fi
 | **Total nodes** | **9,941** |
 | **Total relationships** | **206,408** |
 
-The final relationship counts were verified using Cypher aggregation queries.
+The final node and relationship counts were verified using Cypher aggregation queries. The 200,000 ratings are the first rows of the rating file, **not a random or representative sample**, so analysis results may be biased toward users appearing earlier in the source file.
+
+![Imported node and relationship counts](output/load_data.png)
 
 ## Part 3 — Cypher Queries
 
@@ -275,12 +287,6 @@ The shortest path is calculated using graph connectivity, regardless of the actu
 
 ![Query 6 Results](output/03_query6.png)
 
-### Part 3 Conclusion
-
-The six queries demonstrate how Cypher expresses relationships directly through graph patterns. Simple aggregation queries resemble SQL operations, while shared-preference, recommendation, and shortest-path queries benefit from the graph model's explicit relationships.
-
-All results reflect the imported subset of 200,000 ratings and should not be interpreted as statistics for the entire MovieLens 1M dataset.
-
 ### Shortest Path Interpretation
 
 **1. What does path length mean in this graph?**
@@ -309,7 +315,14 @@ A path length of 6 means two users are connected through two intermediate users 
 
 Longer paths indicate more indirect connections between users. However, path length alone does not measure preference similarity because `RATED` relationships may represent positive or negative ratings.
 
+### Part 3 Conclusion
+
+The six queries demonstrate how Cypher expresses relationships directly through graph patterns. Simple aggregation queries resemble SQL operations, while shared-preference, recommendation, and shortest-path queries benefit from the graph model's explicit relationships. All results reflect the imported subset of 200,000 ratings and do not represent the entire MovieLens 1M dataset.
+
 ## Part 4 — Supernode Detection
+
+**Implementation:** [queries/part4_supernodes.cypher](queries/part4_supernodes.cypher)
+
 
 ### 4.1 Identifying Supernodes
 
@@ -329,7 +342,8 @@ The highest-degree nodes observed include:
 | User 424 | User | 1,226 |
 | Comedy | Genre | 1,200 |
 
-Both highly active users and popular genres are potential supernodes.
+Both highly active users and popular genres are potential supernodes. The table lists the seven records visible in the saved result, rather than claiming to reproduce all ten rows.
+
 ![Top 10 Supernodes](output/04_supernodes_top10.png)
 
 ### 4.2 Genre Supernode Analysis
@@ -386,6 +400,10 @@ The analysis demonstrates that graph query performance depends not only on index
 
 ## Part 5 — Graph Data Science (Optional)
 
+**Implementation:** [queries/part5_gds.cypher](queries/part5_gds.cypher)
+
+The optional GDS experiments use **in-memory projections**, not persistent `CO_RATED` or `SIMILAR` relationships in the source database.
+
 ### 5.1 PageRank — Movie Influence Analysis
 
 PageRank was executed on an undirected movie similarity graph containing 218 movie nodes and 6,000 projected relationship entries, representing 3,000 movie pairs.
@@ -405,6 +423,36 @@ The projection was constructed from highly rated movies shared by the first 20 u
 **Interpretation:** A high PageRank indicates that a movie occupies an influential position within the projected network of shared positive ratings. Unlike a simple popularity count, PageRank considers the connectivity of neighboring movies.
 
 These scores are not average user ratings. Since the projection uses a restricted sample and unweighted PageRank, the findings demonstrate the algorithm rather than provide a representative ranking of the complete MovieLens dataset.
+
+### 5.2 Louvain — User Community Detection
+
+**Purpose:** Find user communities whose members have relatively strong connections based on shared positively rated movies.
+
+**Methodology:** We built an undirected `userSimilarity` projection from users with IDs up to 100. Two users are connected when they rated at least two movies at 4 or above; the relationship `weight` counts their shared highly rated movies. The projection contains **100 users and 6,000 relationship entries** (3,000 undirected user pairs). Weighted Louvain was executed with `relationshipWeightProperty: 'weight'`.
+
+**Community results:**
+
+| Community ID | Members | Share of sample |
+|---|---:|---:|
+| 1 | 34 | 34% |
+| 16 | 28 | 28% |
+| 12 | 17 | 17% |
+| 15 | 15 | 15% |
+| 59 | 6 | 6% |
+| **Total** | **100** | **100%** |
+
+**Modularity:** `0.0769`. This relatively low positive value suggests weak separation between the detected communities in this dense projection. The community labels are algorithm-generated identifiers, not genre categories.
+
+**Genre interpretation:** For each user community, positively rated movies (`rating >= 4`) were joined to their `Genre` nodes. A multi-genre movie contributes to each of its genres. The saved results explicitly establish these two examples:
+
+| Community | Most positively rated genres (count) |
+|---|---|
+| 1 | Action (1,223), Drama (1,043), Comedy (894) |
+| 12 | Comedy (735), Romance (352), Drama (327) |
+
+Community 1 shows a larger count of positive ratings for Action, while Community 12 shows more positive ratings for Comedy. These counts are not normalized for group size or genre frequency and should not be used to assign definitive audience personas. The query computes top three genres for **all five** communities; only the two communities visible in the recorded screenshot are transcribed here.
+
+**Discussion:** The communities overlap in their genre interests, and the low modularity warns against presenting them as strongly separated taste segments. The 100-user and 3,000-pair caps further limit generalization.
 
 ### 5.3 Dijkstra — Shortest Paths Between Users
 
@@ -431,7 +479,7 @@ All four selected pairs were reachable.
 
 **Small-world hypothesis:** The results are consistent with short distances between users, but they do not establish the six-degrees-of-separation hypothesis. Only four selected pairs were analyzed, and the graph contains a limited sample of 100 users.
 
-The short paths may also be influenced by the projection strategy, which retained the 3,000 strongest user-pair relationships.
+The short paths may also be influenced by the projection strategy, which retained the 3,000 pairs with the highest shared-positive-movie counts. In this unweighted Dijkstra experiment, a direct `SIMILAR` edge has cost 1 regardless of its `weight`; that cost does not measure preference similarity.
 
 **Conclusion:** Dijkstra successfully identified shortest paths within the similarity graph. A larger and more representative graph, together with broader shortest-path analysis, would be needed to assess the network's overall small-world properties.
 
