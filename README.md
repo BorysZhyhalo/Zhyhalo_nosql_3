@@ -150,6 +150,7 @@ The final relationship counts were verified using Cypher aggregation queries.
 
 ## Part 3 — Cypher Queries
 
+**Implementation:** [queries/part3.cypher](queries/part3.cypher)
 
 This section demonstrates six Cypher queries of increasing complexity using the MovieLens knowledge graph. The queries cover filtering, aggregation, shared preferences, collaborative filtering, and shortest-path analysis.
 
@@ -172,7 +173,7 @@ The analysis is based on a subset of 200,000 ratings from the MovieLens 1M datas
 
 **Interpretation:** A high average rating does not necessarily indicate a reliable recommendation. Blackmail has a perfect score based on only one rating, whereas The Usual Suspects has a high average supported by hundreds of ratings.
 
-**Screenshot:** `output/03_query1.png`
+![Query 1 Results](output/03_query1.png)
 
 ### Query 2 — Users with More Than 50 Five-Star Ratings
 
@@ -192,7 +193,7 @@ The analysis is based on a subset of 200,000 ratings from the MovieLens 1M datas
 
 **Interpretation:** Some users are substantially more active in assigning maximum ratings. User 549 gave 402 five-star ratings, making this user an interesting candidate for further analysis of graph connectivity.
 
-**Screenshot:** `output/03_query2.png`
+![Query 2 Results](output/03_query2.png)
 
 ### Query 3 — Movies Highly Rated by Two Users
 
@@ -211,7 +212,7 @@ The analysis is based on a subset of 200,000 ratings from the MovieLens 1M datas
 
 **Interpretation:** The shared movie connections demonstrate overlapping user preferences. Such patterns form the basis for graph-based collaborative recommendation systems.
 
-**Screenshot:** `output/03_query3.png`
+![Query 3 Results](output/03_query3.png)
 
 ### Query 4 — Genres with High Average Ratings
 
@@ -232,7 +233,7 @@ The analysis is based on a subset of 200,000 ratings from the MovieLens 1M datas
 
 **Interpretation:** Film-Noir has the highest average rating among the displayed genres, while Drama has substantially more ratings. Average rating and rating volume measure different aspects of user preferences. Ratings of movies belonging to multiple genres contribute to each applicable genre.
 
-**Screenshot:** `output/03_query4.png`
+![Query 4 Results](output/03_query4.png)
 
 ### Query 5 — User-Based Collaborative Filtering
 
@@ -252,7 +253,7 @@ The analysis is based on a subset of 200,000 ratings from the MovieLens 1M datas
 
 **Interpretation:** The graph supports collaborative filtering by identifying shared preferences through multi-hop relationships. The approach generates recommendations without training a machine-learning model, although popular movies may receive disproportionate support.
 
-**Screenshot:** `output/03_query5.png`
+![Query 5 Results](output/03_query5.png)
 
 ### Query 6 — Shortest Path Between Two Users
 
@@ -270,7 +271,9 @@ The analysis is based on a subset of 200,000 ratings from the MovieLens 1M datas
 
 A hop represents traversal of one relationship. The shortest path is measured in relationships, not in the number of movies or users alone.
 
-**Screenshot:** `output/03_query6.png`
+The shortest path is calculated using graph connectivity, regardless of the actual rating values. Therefore, two users connected through a movie do not necessarily have similar preferences.
+
+![Query 6 Results](output/03_query6.png)
 
 ### Part 3 Conclusion
 
