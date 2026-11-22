@@ -1,4 +1,4 @@
-#MERGE protects against the re-creation of entities, while constraints provide an additional guarantee of key uniqueness.
+//MERGE protects against the re-creation of entities, while constraints provide an additional guarantee of key uniqueness.
 
 CREATE CONSTRAINT user_id_unique IF NOT EXISTS
 FOR (u:User)
@@ -12,7 +12,7 @@ CREATE CONSTRAINT genre_name_unique IF NOT EXISTS
 FOR (g:Genre)
 REQUIRE g.name IS UNIQUE;
 
-#Load Data
+//Load Data
 
 LOAD CSV WITH HEADERS FROM
 'https://raw.githubusercontent.com/BorysZhyhalo/Zhyhalo_nosql_3/main/import/movies.csv'
