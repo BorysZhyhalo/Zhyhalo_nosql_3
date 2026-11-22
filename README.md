@@ -386,7 +386,54 @@ The analysis demonstrates that graph query performance depends not only on index
 
 ## Part 5 — Graph Data Science (Optional)
 
-*Optional: PageRank, Louvain, and Dijkstra.*
+### 5.1 PageRank — Movie Influence Analysis
+
+PageRank was executed on an undirected movie similarity graph containing 218 movie nodes and 6,000 projected relationship entries, representing 3,000 movie pairs.
+
+The projection was constructed from highly rated movies shared by the first 20 users, with a maximum of 3,000 movie pairs.
+
+**Key findings:**
+
+| Movie | PageRank score |
+|---|---:|
+| Star Wars: Episode VI — Return of the Jedi (1983) | 4.3405 |
+| Braveheart (1995) | 4.1242 |
+| Jurassic Park (1993) | 4.1152 |
+| Saving Private Ryan (1998) | 3.6586 |
+| Schindler's List (1993) | 3.6127 |
+
+**Interpretation:** A high PageRank indicates that a movie occupies an influential position within the projected network of shared positive ratings. Unlike a simple popularity count, PageRank considers the connectivity of neighboring movies.
+
+These scores are not average user ratings. Since the projection uses a restricted sample and unweighted PageRank, the findings demonstrate the algorithm rather than provide a representative ranking of the complete MovieLens dataset.
+
+### 5.3 Dijkstra — Shortest Paths Between Users
+
+**Purpose:** Analyze the shortest paths between users in the projected `userSimilarity` graph.
+
+**Methodology:** Dijkstra's algorithm was executed on an undirected graph containing 100 users and 3,000 unique similarity relationships. All relationships were treated as having a cost of 1, so the algorithm minimized the number of hops rather than a weighted similarity distance.
+
+**Results:**
+
+| Source user | Target user | Path | Hops |
+|---|---|---|---:|
+| 1 | 53 | 1 → 53 | 1 |
+| 1 | 95 | 1 → 95 | 1 |
+| 5 | 82 | 5 → 82 | 1 |
+| 53 | 58 | 53 → 58 | 1 |
+
+All four selected pairs were reachable.
+
+- Average path length: **1.0 hops**
+- Minimum path length: **1 hop**
+- Maximum path length: **1 hop**
+
+**Interpretation:** All tested user pairs have direct similarity relationships. This reflects the relatively dense structure of the projected graph.
+
+**Small-world hypothesis:** The results are consistent with short distances between users, but they do not establish the six-degrees-of-separation hypothesis. Only four selected pairs were analyzed, and the graph contains a limited sample of 100 users.
+
+The short paths may also be influenced by the projection strategy, which retained the 3,000 strongest user-pair relationships.
+
+**Conclusion:** Dijkstra successfully identified shortest paths within the similarity graph. A larger and more representative graph, together with broader shortest-path analysis, would be needed to assess the network's overall small-world properties.
 
 ## Part 6 — Analysis and Conclusions
 
