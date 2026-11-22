@@ -311,7 +311,78 @@ Longer paths indicate more indirect connections between users. However, path len
 
 ## Part 4 — Supernode Detection
 
-*To be completed after measuring node degrees and analyzing supernodes.*
+### 4.1 Identifying Supernodes
+
+A supernode is a graph node with an unusually high degree, meaning it is connected to significantly more relationships than typical nodes.
+
+To identify supernodes, we calculated the total number of relationships connected to each node and sorted the results in descending order.
+
+The highest-degree nodes observed include:
+
+| Node | Type | Degree |
+|---|---|---:|
+| Drama | Genre | 1,603 |
+| User 1181 | User | 1,521 |
+| User 889 | User | 1,518 |
+| User 1150 | User | 1,302 |
+| User 1015 | User | 1,286 |
+| User 424 | User | 1,226 |
+| Comedy | Genre | 1,200 |
+
+Both highly active users and popular genres are potential supernodes.
+![Top 10 Supernodes](output/04_supernodes_top10.png)
+
+### 4.2 Genre Supernode Analysis
+
+Genre nodes were analyzed separately by counting the movies connected through `HAS_GENRE` relationships.
+
+The most connected genres were:
+
+| Genre | Connected movies |
+|---|---:|
+| Drama | 1,603 |
+| Comedy | 1,200 |
+| Action | 503 |
+| Thriller | 492 |
+| Romance | 471 |
+
+![Genre Node Degrees](output/04_genre_degrees.png)
+
+Drama and Comedy have substantially more connections than most other genres.
+
+This confirms that genre nodes can also behave as supernodes because thousands of movies share the same genre entities.
+
+### 4.3 Why Do Supernodes Affect Query Performance?
+
+Indexes help Neo4j locate a node efficiently using indexed properties such as `Genre.name` or `User.userId`.
+
+However, once a high-degree node has been found, Neo4j may still need to traverse a large number of its relationships.
+
+For example, traversing from the Drama genre to connected movies can produce up to 1,603 movie matches before any subsequent filtering.
+
+When a query continues from those movies to their users, the number of intermediate records may increase significantly. This phenomenon is known as *fan-out*.
+
+Therefore, node lookup indexes do not eliminate the computational cost of traversing large numbers of relationships.
+
+### 4.4 Recommended Optimization Strategy
+
+For this dataset, the recommended strategy is to minimize unnecessary traversal through high-degree genre nodes.
+
+Instead of beginning a recommendation query from a broad genre such as Drama, queries should start from a selective indexed node, such as a specific user or movie, and expand only through the relationships required by the task.
+
+Additional optimizations include applying selective filters early, restricting relationship types and traversal depth, and aggregating intermediate results before further graph expansion when appropriate.
+
+For frequently executed genre-based analytical queries, a denormalized genre property on Movie nodes could also be considered as a supplementary representation. This may simplify certain filters while preserving Genre nodes for graph exploration.
+
+These strategies reduce unnecessary graph expansion without changing the existing recommendation model.
+
+### 4.5 Conclusion
+
+Supernode detection identified two main sources of high connectivity in the MovieLens graph: popular genres and highly active users.
+
+Drama had the highest observed degree (1,603), followed by User 1181 (1,521).
+
+The analysis demonstrates that graph query performance depends not only on indexes but also on graph topology, node degree, and the number of relationships traversed during query execution.
 
 ## Part 5 — Graph Data Science (Optional)
 
